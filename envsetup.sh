@@ -20,6 +20,7 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 - sepgrep:   Greps on all local sepolicy files.
 - sgrep:     Greps on all local source files.
 - godir:     Go to the directory containing a file.
+- mka:       Builds using SCHED_BATCH on all processors
 
 Environment options:
 - SANITIZE_HOST: Set to 'true' to use ASAN for all host modules. Note that
@@ -1538,6 +1539,17 @@ function godir () {
         pathname=${lines[0]}
     fi
     \cd $T/$pathname
+}
+
+function mka() {
+    case `uname -s` in
+        Darwin)
+            m -j "$@"
+            ;;
+        *)
+            mk_timer schedtool -B -n 10 -e ionice -n 7 m -j "$@"
+            ;;
+    esac
 }
 
 # Force JAVA_HOME to point to java 1.7/1.8 if it isn't already set.
