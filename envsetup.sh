@@ -20,6 +20,7 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 - sepgrep:   Greps on all local sepolicy files.
 - sgrep:     Greps on all local source files.
 - godir:     Go to the directory containing a file.
+- mka:      Builds using SCHED_BATCH on all processors
 
 Environment options:
 - SANITIZE_HOST: Set to 'true' to use ASAN for all host modules. Note that
@@ -151,6 +152,22 @@ function check_variant()
         fi
     done
     return 1
+}
+
+function mka() {
+   local T=$(gettop)
+   if [ "$T" ]; then
+       case `uname -s` in
+           Darwin)
+               make -C $T -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
+               ;;
+           *)
+               mk_timer schedtool -B -n 1 -e ionice -n 1 make -C $T -j$(cat /proc/cpuinfo | grep "^processor" | wc -l) "$@"
+               ;;
+       esac
+     else
+       echo "Couldn't locate the top of the tree.  Try setting TOP."
+   fi
 }
 
 function setpaths()
@@ -753,7 +770,7 @@ function m()
     local T=$(gettop)
     local DRV=$(getdriver $T)
     if [ "$T" ]; then
-        _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $@
+        mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $@
     else
         echo "Couldn't locate the top of the tree.  Try setting TOP."
         return 1
@@ -784,7 +801,7 @@ function mm()
     # If we're sitting in the root of the build tree, just do a
     # normal build.
     if [ -f build/soong/soong_ui.bash ]; then
-        _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $@
+        mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $@
     else
         # Find the closest Android.mk file.
         local M=$(findmakefile)
@@ -819,7 +836,7 @@ function mm()
             if [ "1" = "${WITH_TIDY_ONLY}" -o "true" = "${WITH_TIDY_ONLY}" ]; then
               MODULES=tidy_only
             fi
-            ONE_SHOT_MAKEFILE=$M _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $MODULES $ARGS
+            ONE_SHOT_MAKEFILE=$M mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $MODULES $ARGS
         fi
     fi
 }
@@ -887,7 +904,7 @@ function mmm()
         fi
         # Convert "/" to "-".
         MODULES_IN_PATHS=${MODULES_IN_PATHS//\//-}
-        ONE_SHOT_MAKEFILE="$MAKEFILE" _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $DASH_ARGS $MODULES $MODULES_IN_PATHS $ARGS
+        ONE_SHOT_MAKEFILE="$MAKEFILE" mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $DASH_ARGS $MODULES $MODULES_IN_PATHS $ARGS
     else
         echo "Couldn't locate the top of the tree.  Try setting TOP."
         return 1
@@ -899,7 +916,7 @@ function mma()
   local T=$(gettop)
   local DRV=$(getdriver $T)
   if [ -f build/soong/soong_ui.bash ]; then
-    _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $@
+    mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $@
   else
     if [ ! "$T" ]; then
       echo "Couldn't locate the top of the tree.  Try setting TOP."
@@ -911,7 +928,7 @@ function mma()
     local MODULES_IN_PATHS=MODULES-IN-$(dirname ${M})
     # Convert "/" to "-".
     MODULES_IN_PATHS=${MODULES_IN_PATHS//\//-}
-    _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $@ $MODULES_IN_PATHS
+    mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $@ $MODULES_IN_PATHS
   fi
 }
 
@@ -949,7 +966,7 @@ function mmma()
     done
     # Convert "/" to "-".
     MODULES_IN_PATHS=${MODULES_IN_PATHS//\//-}
-    _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $DASH_ARGS $ARGS $MODULES_IN_PATHS
+    mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $DASH_ARGS $ARGS $MODULES_IN_PATHS
   else
     echo "Couldn't locate the top of the tree.  Try setting TOP."
     return 1
@@ -1603,10 +1620,10 @@ function get_make_command()
     fi
 }
 
-function _wrap_build()
+function mk_timer()
 {
     local start_time=$(date +"%s")
-    "$@"
+    $@
     local ret=$?
     local end_time=$(date +"%s")
     local tdiff=$(($end_time-$start_time))
@@ -1636,14 +1653,14 @@ function _wrap_build()
     elif [ $secs -gt 0 ] ; then
         printf "(%s seconds)" $secs
     fi
-    echo " ####${color_reset}"
-    echo
+    printf " ####${color_reset}\n\n"
     return $ret
 }
 
 function make()
 {
-    _wrap_build $(get_make_command) "$@"
+    mk_timer $(get_make_command) "$@"
+
 }
 
 function provision()
@@ -1673,6 +1690,9 @@ function provision()
         fi
     fi
     "$ANDROID_PRODUCT_OUT/provision-device" "$@"
+    echo " ####${color_reset}"
+    echo
+    return $ret
 }
 
 if [ "x$SHELL" != "x/bin/bash" ]; then
