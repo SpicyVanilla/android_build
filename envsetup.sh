@@ -830,7 +830,7 @@ function m()
     local T=$(gettop)
     local DRV=$(getdriver $T)
     if [ "$T" ]; then
-        _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $@
+        mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $@
     else
         echo "Couldn't locate the top of the tree.  Try setting TOP."
         return 1
@@ -861,7 +861,7 @@ function mm()
     # If we're sitting in the root of the build tree, just do a
     # normal build.
     if [ -f build/soong/soong_ui.bash ]; then
-        _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $@
+        mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $@
     else
         # Find the closest Android.mk file.
         local M=$(findmakefile)
@@ -896,7 +896,7 @@ function mm()
             if [ "1" = "${WITH_TIDY_ONLY}" -o "true" = "${WITH_TIDY_ONLY}" ]; then
               MODULES=tidy_only
             fi
-            ONE_SHOT_MAKEFILE=$M _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $MODULES $ARGS
+            ONE_SHOT_MAKEFILE=$M mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $MODULES $ARGS
         fi
     fi
 }
@@ -964,7 +964,7 @@ function mmm()
         fi
         # Convert "/" to "-".
         MODULES_IN_PATHS=${MODULES_IN_PATHS//\//-}
-        ONE_SHOT_MAKEFILE="$MAKEFILE" _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $DASH_ARGS $MODULES $MODULES_IN_PATHS $ARGS
+        ONE_SHOT_MAKEFILE="$MAKEFILE" mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $DASH_ARGS $MODULES $MODULES_IN_PATHS $ARGS
     else
         echo "Couldn't locate the top of the tree.  Try setting TOP."
         return 1
@@ -976,7 +976,7 @@ function mma()
   local T=$(gettop)
   local DRV=$(getdriver $T)
   if [ -f build/soong/soong_ui.bash ]; then
-    _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $@
+    mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $@
   else
     if [ ! "$T" ]; then
       echo "Couldn't locate the top of the tree.  Try setting TOP."
@@ -988,7 +988,7 @@ function mma()
     local MODULES_IN_PATHS=MODULES-IN-$(dirname ${M})
     # Convert "/" to "-".
     MODULES_IN_PATHS=${MODULES_IN_PATHS//\//-}
-    _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $@ $MODULES_IN_PATHS
+    mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $@ $MODULES_IN_PATHS
   fi
 }
 
@@ -1026,7 +1026,7 @@ function mmma()
     done
     # Convert "/" to "-".
     MODULES_IN_PATHS=${MODULES_IN_PATHS//\//-}
-    _wrap_build $DRV $T/build/soong/soong_ui.bash --make-mode $DASH_ARGS $ARGS $MODULES_IN_PATHS
+    mk_timer $DRV $T/build/soong/soong_ui.bash --make-mode $DASH_ARGS $ARGS $MODULES_IN_PATHS
   else
     echo "Couldn't locate the top of the tree.  Try setting TOP."
     return 1
